@@ -345,10 +345,10 @@ enum class RunMode {
 // New/Modified parameters
 //==============================================================================
 
-enum class BranchlessMode {
-  NO_BRANCHLESS, // default value
-  BRANCHLESS,    // but no population control
-  BRANCHLESS_RR  // with splitting and russian roulette
+enum BranchlessMode {
+  NO_BRANCHLESS,          // default value
+  BRANCHLESS,             // but without population control
+  BRANCHLESS_SPLITTING_RR // with splitting and russian roulette
 };
 
 //==============================================================================

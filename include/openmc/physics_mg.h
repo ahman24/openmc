@@ -34,5 +34,14 @@ void create_fission_sites(Particle& p);
 //! \param p Particle to operate on
 void absorption(Particle& p);
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+//! Calculate fission probability in branchless collision mode
+inline double bc_calc_fission_prob(const Particle& p);
+
+//! Calculate outgoing weight in branchless collision mode
+inline double bc_calc_outgoing_weight(const Particle& p);
 } // namespace openmc
 #endif // OPENMC_PHYSICS_MG_H

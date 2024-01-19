@@ -62,11 +62,11 @@ void sample_reaction(Particle& p)
   // Sample a scattering event to determine the energy of the exiting neutron
   scatter(p);
 
-  // Play Russian roulette if survival biasing is turned on
-  if (settings::survival_biasing) {
-    if (p.wgt() < settings::weight_cutoff) {
+  // Play Russian roulette if relevant technique(s) are in use
+  if (settings::survival_biasing ||
+      settings::branchless_mode == BranchlessMode::BRANCHLESS_SPLITTING_RR) {
+    if (p.wgt() < settings::weight_cutoff || p.wgt() > settings::weight_survive)
       russian_roulette(p, settings::weight_survive);
-    }
   }
 }
 
@@ -83,27 +83,60 @@ void scatter(Particle& p)
 
   // Set event component
   p.event() = TallyEvent::SCATTER;
+
+  // Update outgoing particle weight for branchless mode
+  if (settings::branchless_mode)
+    p.wgt() = bc_calc_outgoing_weight(p);
 }
 
 void create_fission_sites(Particle& p)
 {
-  // If uniform fission source weighting is turned on, we increase or decrease
-  // the expected number of fission sites produced
-  double weight = settings::ufs_on ? ufs_get_weight(p) : 1.0;
+  // Initialize values
+  int nu;
+  double weight {1.0};
+  double branchless_weight {1.0};
 
-  // Determine the expected number of neutrons produced
-  double nu_t = p.wgt() / simulation::keff * weight * p.macro_xs().nu_fission /
-                p.macro_xs().total;
+  // If uniform fission source weighting is turned on, we increase or
+  // decrease the expected number of fission sites produced
+  weight = settings::ufs_on ? ufs_get_weight(p) : 1.0;
 
-  // Sample the number of neutrons produced
-  int nu = static_cast<int>(nu_t);
-  if (prn(p.current_seed()) <= (nu_t - int(nu_t))) {
-    nu++;
+  // This block handles the branchless collision kernel.
+  // When branchless is activated, the block will determine if fission actually
+  // occurs. If fission is sampled, the block will adjust the number of fission
+  if (settings::branchless_mode) {
+    if (prn(p.current_seed()) > bc_calc_fission_prob(p))
+      return;
+
+    // if fission is sampled
+    branchless_weight = bc_calc_outgoing_weight(p);
+    nu = 1;
+
+    // for BRANCHLESS_SPLITTING_RR, perform splitting if necessary
+    if (settings::branchless_mode == BranchlessMode::BRANCHLESS_SPLITTING_RR &&
+        branchless_weight > settings::weight_survive) {
+      nu = static_cast<int>(branchless_weight / settings::weight_survive) + 1;
+      branchless_weight /= nu;
+    }
   }
 
-  // If no neutrons were produced then don't continue
-  if (nu == 0)
-    return;
+  // Otherwise, sample number of expected fission neutrons.
+  // Note that while a fission reaction is sampled, it never actually "happens",
+  // i.e. the weight of the particle does not change when sampling fission
+  // sites.
+  else {
+    // Determine the expected number of neutrons produced
+    double nu_t = p.wgt() / simulation::keff * weight *
+                  p.macro_xs().nu_fission / p.macro_xs().total;
+
+    // Sample the number of neutrons produced
+    nu = static_cast<int>(nu_t);
+    if (prn(p.current_seed()) <= (nu_t - nu))
+      nu++;
+
+    // If no neutrons were produced then don't continue
+    if (nu == 0)
+      return;
+  }
 
   // Initialize the counter of delayed neutrons encountered for each delayed
   // group.
@@ -127,7 +160,7 @@ void create_fission_sites(Particle& p)
     SourceSite site;
     site.r = p.r();
     site.particle = ParticleType::neutron;
-    site.wgt = 1. / weight;
+    site.wgt = branchless_weight / weight;
     site.parent_id = p.id();
     site.progeny_id = p.n_progeny()++;
 
@@ -204,7 +237,7 @@ void create_fission_sites(Particle& p)
 
   // Store the total weight banked for analog fission tallies
   p.n_bank() = nu;
-  p.wgt_bank() = nu / weight;
+  p.wgt_bank() = nu * branchless_weight / weight;
   for (size_t d = 0; d < MAX_DELAYED_GROUPS; d++) {
     p.n_delayed_bank(d) = nu_d[d];
   }
@@ -222,6 +255,17 @@ void absorption(Particle& p)
     // Score implicit absorpion estimate of keff
     p.keff_tally_absorption() +=
       wgt_absorb * p.macro_xs().nu_fission / p.macro_xs().absorption;
+  } else if (settings::branchless_mode) {
+    if (!p.fission())
+      return;
+
+    // Score absorption estimate of keff
+    if (settings::run_mode == RunMode::EIGENVALUE)
+      p.keff_tally_absorption() += bc_calc_outgoing_weight(p);
+
+    // Kill particle if fission event was sampled
+    p.wgt() = 0.0;
+    p.event() = TallyEvent::ABSORB;
   } else {
     if (p.macro_xs().absorption > prn(p.current_seed()) * p.macro_xs().total) {
       p.keff_tally_absorption() +=
@@ -230,6 +274,22 @@ void absorption(Particle& p)
       p.event() = TallyEvent::ABSORB;
     }
   }
+}
+
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+inline double bc_calc_fission_prob(const Particle& p)
+{
+  const double xs_s = p.macro_xs().total - p.macro_xs().absorption;
+  return p.macro_xs().nu_fission / (p.macro_xs().nu_fission + xs_s);
+}
+
+inline double bc_calc_outgoing_weight(const Particle& p)
+{
+  const double xs_s = p.macro_xs().total - p.macro_xs().absorption;
+  return p.wgt() * (p.macro_xs().nu_fission + xs_s) / p.macro_xs().total;
 }
 
 } // namespace openmc

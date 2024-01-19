@@ -11,7 +11,20 @@ namespace openmc {
 
 void russian_roulette(Particle& p, double weight_survive)
 {
-  if (weight_survive * prn(p.current_seed()) < p.wgt()) {
+  // Particle weight too high: split into multiple particles
+  if (p.wgt() > weight_survive) {
+
+    // Calculate number of splitted particles
+    int np = ceil(p.wgt() / weight_survive);
+
+    // Push new splitted particles into secondary bank
+    p.wgt() /= np;
+    for (int i = 0; i < np - 1; ++i) {
+      p.create_secondary(p.wgt(), p.u(), p.E(), ParticleType::neutron);
+    }
+  }
+  // Particle weight too low: execute RR
+  else if (weight_survive * prn(p.current_seed()) < p.wgt()) {
     p.wgt() = weight_survive;
   } else {
     p.wgt() = 0.;

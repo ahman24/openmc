@@ -189,8 +189,8 @@ void get_run_parameters(pugi::xml_node node_base)
 
       if (mode == "branchless")
         branchless_mode = BranchlessMode::BRANCHLESS;
-      else if (mode == "branchless_rr")
-        branchless_mode = BranchlessMode::BRANCHLESS_RR;
+      else if (mode == "branchless_split_rr")
+        branchless_mode = BranchlessMode::BRANCHLESS_SPLITTING_RR;
       else
         fatal_error(fmt::format("Branchless mode {} is not available!", mode));
     }

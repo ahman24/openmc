@@ -102,6 +102,16 @@ void sample_secondary_photons(Particle& p, int i_nuclide);
 //! \param[in] p, particle to be split or rouletted with the weight window.
 void split_particle(Particle& p);
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+//! Calculate fission probability in branchless collision mode
+inline double bc_calc_fission_prob(const Particle& p, int i_nuclide);
+
+//! Calculate outgoing weight in branchless collision mode
+inline double bc_calc_outgoing_weight(const Particle& p, int i_nuclide);
+
 } // namespace openmc
 
 #endif // OPENMC_PHYSICS_H
