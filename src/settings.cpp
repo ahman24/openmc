@@ -181,24 +181,6 @@ void get_run_parameters(pugi::xml_node node_base)
       std::stod(get_node_value(node_base, "rel_max_lost_particles"));
   }
 
-  // read settings for branchless
-  if (check_for_node(root, "branchless")) {
-    auto branchless_node = root.child("branchless");
-    if (branchless_node) {
-      std::string mode = get_node_value(branchless_node, "mode");
-
-      if (mode == "branchless")
-        branchless_mode = BranchlessMode::BRANCHLESS;
-      else if (mode == "branchless_split_rr")
-        branchless_mode = BranchlessMode::BRANCHLESS_SPLITTING_RR;
-      else
-        fatal_error(fmt::format("Branchless mode {} is not available!", mode));
-    }
-
-    //! TODO:
-    //! Add if-clause throw error if BranchlessMode::BRANCHLESS + any UFS!
-  }
-
   // Get number of inactive batches
   if (run_mode == RunMode::EIGENVALUE) {
     if (check_for_node(node_base, "inactive")) {
@@ -993,6 +975,24 @@ void read_settings_xml(pugi::xml_node root)
         break;
       }
     }
+  }
+
+  // read settings for branchless
+  if (check_for_node(root, "branchless")) {
+    auto branchless_node = root.child("branchless");
+    if (branchless_node) {
+      std::string mode = get_node_value(branchless_node, "mode");
+
+      if (mode == "branchless")
+        branchless_mode = BranchlessMode::BRANCHLESS;
+      else if (mode == "branchless_split_rr")
+        branchless_mode = BranchlessMode::BRANCHLESS_SPLITTING_RR;
+      else
+        fatal_error(fmt::format("Branchless mode {} is not available!", mode));
+    }
+
+    //! TODO:
+    //! Add if-clause throw error if BranchlessMode::BRANCHLESS + any UFS!
   }
 }
 

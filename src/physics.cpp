@@ -172,7 +172,7 @@ void create_fission_sites(Particle& p, int i_nuclide, const Reaction& rx)
 
   // If uniform fission source weighting is turned on, we increase or decrease
   // the expected number of fission sites produced
-  double weight = settings::ufs_on ? ufs_get_weight(p) : 1.0;
+  weight = settings::ufs_on ? ufs_get_weight(p) : 1.0;
 
   // This block handles the branchless collision kernel.
   // When branchless is activated, the block will determine if fission actually
@@ -778,7 +778,7 @@ void scatter(Particle& p, int i_nuclide)
 
   // Update outgoing particle weight for branchless mode
   if (settings::branchless_mode)
-    p.wgt() = bc_calc_outgoing_weight(p);
+    p.wgt() = bc_calc_outgoing_weight(p, i_nuclide);
 }
 
 void elastic_scatter(int i_nuclide, const Reaction& rx, double kT, Particle& p)
