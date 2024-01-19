@@ -342,6 +342,16 @@ enum class RunMode {
 };
 
 //==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+enum class BranchlessMode {
+  NO_BRANCHLESS, // default value
+  BRANCHLESS,    // but no population control
+  BRANCHLESS_RR  // with splitting and russian roulette
+};
+
+//==============================================================================
 // Geometry Constants
 
 enum class GeometryType { CSG, DAG };

@@ -132,6 +132,18 @@ extern int trigger_batch_interval; //!< Batch interval for triggers
 extern "C" int verbosity;          //!< How verbose to make output
 extern double weight_cutoff;       //!< Weight cutoff for Russian roulette
 extern double weight_survive;      //!< Survival weight after Russian roulette
+
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+extern BranchlessMode
+  branchless_mode; //!< what branchless collision mode in use?
+
+extern "C" int64_t
+  init_n_particles; //!< initial number of particles per generation. Will be
+                    //!< different when branchless collision is activated.
+
 } // namespace settings
 
 //==============================================================================

@@ -126,6 +126,14 @@ int verbosity {7};
 double weight_cutoff {0.25};
 double weight_survive {1.0};
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+BranchlessMode branchless_mode {BranchlessMode::NO_BRANCHLESS};
+
+int64_t init_n_particles {-1};
+
 } // namespace settings
 
 //==============================================================================
@@ -144,6 +152,7 @@ void get_run_parameters(pugi::xml_node node_base)
 
   // Get number of particles if it wasn't specified as a command-line argument
   if (n_particles == -1) {
+    init_n_particles = std::stoll(get_node_value(node_base, "particles"));
     n_particles = std::stoll(get_node_value(node_base, "particles"));
   }
 
@@ -170,6 +179,24 @@ void get_run_parameters(pugi::xml_node node_base)
   if (check_for_node(node_base, "rel_max_lost_particles")) {
     rel_max_lost_particles =
       std::stod(get_node_value(node_base, "rel_max_lost_particles"));
+  }
+
+  // read settings for branchless
+  if (check_for_node(root, "branchless")) {
+    auto branchless_node = root.child("branchless");
+    if (branchless_node) {
+      std::string mode = get_node_value(branchless_node, "mode");
+
+      if (mode == "branchless")
+        branchless_mode = BranchlessMode::BRANCHLESS;
+      else if (mode == "branchless_rr")
+        branchless_mode = BranchlessMode::BRANCHLESS_RR;
+      else
+        fatal_error(fmt::format("Branchless mode {} is not available!", mode));
+    }
+
+    //! TODO:
+    //! Add if-clause throw error if BranchlessMode::BRANCHLESS + any UFS!
   }
 
   // Get number of inactive batches
