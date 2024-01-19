@@ -47,6 +47,12 @@ extern const RegularMesh* ufs_mesh;
 extern vector<double> k_generation;
 extern vector<int64_t> work_index;
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+extern double gen_total_weight; //!< Total source weight in a generation
+
 } // namespace simulation
 
 //==============================================================================

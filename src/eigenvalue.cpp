@@ -66,7 +66,7 @@ void calculate_generation_keff()
 
   // Normalize single batch estimate of k
   // TODO: This should be normalized by total_weight, not by n_particles
-  keff_reduced /= settings::n_particles;
+  keff_reduced /= simulation::total_weight;
   simulation::k_generation.push_back(keff_reduced);
 }
 
@@ -208,6 +208,26 @@ void synchronize_bank()
 
     // the last processor should not be sending sites to right
     finish = simulation::work_index[mpi::rank + 1];
+  }
+
+  // During power iteration, it is typically desirable to keep the net weight
+  // of all particles entering a fission generation constant, as this can
+  // reduce the fluctuations in scores. For this purpose, all particles
+  // entering a fission generation have their weight multiplied by the ratio
+  // of the desired total weight to the current total weight. This
+  // modification is typically applied after combing (if combing is used).
+  // See H. Belanger, M&C 2023
+
+  if (settings::ufs_on || settings::branchless_mode ||
+      settings::survival_biasing) {
+
+    // Get total weight
+    for (int64_t i = 0; i < settings::n_particles; i++)
+      simulation::gen_total_weight += temp_sites[i].wgt;
+
+    // Normalize each element
+    for (int64_t i = 0; i < settings::n_particles; i++)
+      temp_sites[i].wgt *= settings::n_particles / simulation::gen_total_weight;
   }
 
   simulation::time_bank_sample.stop();

@@ -2,6 +2,7 @@
 
 #include "openmc/bank.h"
 #include "openmc/capi.h"
+#include "openmc/constants.h"
 #include "openmc/container_util.h"
 #include "openmc/eigenvalue.h"
 #include "openmc/error.h"
@@ -301,6 +302,12 @@ const RegularMesh* ufs_mesh {nullptr};
 vector<double> k_generation;
 vector<int64_t> work_index;
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+double gen_total_weight;
+
 } // namespace simulation
 
 //==============================================================================
@@ -468,6 +475,10 @@ void initialize_generation()
     // Store current value of tracklength k
     simulation::keff_generation = simulation::global_tallies(
       GlobalTally::K_TRACKLENGTH, TallyResult::VALUE);
+
+    // Reset current generation total weight
+    if (settings::branchless_mode)
+      simulation::gen_total_weight = 0.0;
   }
 }
 
@@ -498,6 +509,14 @@ void finalize_generation()
     // so as to allow for reproducibility regardless of which order particles
     // are run in.
     sort_fission_bank();
+
+    // For branchless without population control, we need to adjust the number
+    // of particles for the next generation which is the same as the size of the
+    // fission bank. Then recalculate the work load for the next generation.
+    if (settings::branchless_mode == BranchlessMode::BRANCHLESS) {
+      settings::n_particles = simulation::fission_bank.size();
+      calculate_work();
+    }
 
     // Distribute fission bank across processors evenly
     synchronize_bank();
