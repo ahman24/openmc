@@ -477,7 +477,8 @@ void initialize_generation()
       GlobalTally::K_TRACKLENGTH, TallyResult::VALUE);
 
     // Reset current generation total weight
-    if (settings::branchless_mode)
+    if (settings::ufs_on || settings::branchless_mode ||
+        settings::survival_biasing)
       simulation::gen_total_weight = 0.0;
   }
 }

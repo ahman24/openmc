@@ -106,3 +106,8 @@ CMakeSettings.json
 
 # Python pickle files
 *.pkl
+
+# Common folders during development
+build*
+*.sh
+test_feature*
