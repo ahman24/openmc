@@ -350,6 +350,15 @@ public:
   double volume_frac_;           //!< Volume fraction of each mesh element
   double element_volume_;        //!< Volume of each mesh element
   xt::xtensor<double, 1> width_; //!< Width of each mesh element
+
+  //==============================================================================
+  // New/Modified parameters
+  //==============================================================================
+
+  xt::xtensor<double, 1> count_sites_analog(
+    const SourceSite* bank, int64_t length, bool* outside) const;
+  xt::xtensor<double, 1> count_sites_weight(
+    const SourceSite* bank, int64_t length, bool* outside) const;
 };
 
 class RectilinearMesh : public StructuredMesh {

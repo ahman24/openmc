@@ -40,6 +40,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iostream>
 #include <string>
 
 //==============================================================================
@@ -511,6 +513,20 @@ void finalize_generation()
     // are run in.
     sort_fission_bank();
 
+    //====================================================
+    // Get current src frac and store in container
+    bool sites_outside {false};
+    xt::xtensor<double, 1> before_fiss_bank_analog;
+    xt::xtensor<double, 1> before_fiss_bank_weight;
+
+    before_fiss_bank_analog = simulation::entropy_mesh->count_sites_analog(
+      simulation::fission_bank.data(), simulation::fission_bank.size(),
+      &sites_outside);
+    before_fiss_bank_weight = simulation::entropy_mesh->count_sites_weight(
+      simulation::fission_bank.data(), simulation::fission_bank.size(),
+      &sites_outside);
+    //====================================================
+
     // For branchless without population control, we need to adjust the number
     // of particles for the next generation which is the same as the size of the
     // fission bank. Then recalculate the work load for the next generation.
@@ -519,8 +535,46 @@ void finalize_generation()
       calculate_work();
     }
 
+    // Perform improved UFS operations
+    if (settings::ufs_mode == UFSMode::IMPROVED)
+      ufs_finalize_generation();
+
+    //====================================================
+    // Get current src frac and store in container
+    xt::xtensor<double, 1> after_fiss_bank_analog;
+    xt::xtensor<double, 1> after_fiss_bank_weight;
+
+    after_fiss_bank_analog = simulation::entropy_mesh->count_sites_analog(
+      simulation::fission_bank.data(), simulation::fission_bank.size(),
+      &sites_outside);
+    after_fiss_bank_weight = simulation::entropy_mesh->count_sites_weight(
+      simulation::fission_bank.data(), simulation::fission_bank.size(),
+      &sites_outside);
+
+    //====================================================
+
     // Distribute fission bank across processors evenly
     synchronize_bank();
+
+    //====================================================
+    // Get current src frac and store in container
+    xt::xtensor<double, 1> after_src_bank_analog;
+    xt::xtensor<double, 1> after_src_bank_weight;
+
+    after_src_bank_analog = simulation::entropy_mesh->count_sites_analog(
+      simulation::source_bank.data(), simulation::source_bank.size(),
+      &sites_outside);
+    after_src_bank_weight = simulation::entropy_mesh->count_sites_weight(
+      simulation::source_bank.data(), simulation::source_bank.size(),
+      &sites_outside);
+
+    // Write into a file
+    std::string fname =
+      "logs/log" + std::to_string(overall_generation()) + ".txt";
+    write_log(before_fiss_bank_analog, before_fiss_bank_weight,
+      after_fiss_bank_analog, after_fiss_bank_weight, after_src_bank_analog,
+      after_src_bank_weight, simulation::entropy_mesh->n_bins(), fname);
+    //====================================================
 
     // Calculate shannon entropy
     if (settings::entropy_on)
@@ -829,6 +883,78 @@ void transport_event_based()
     remaining_work -= n_particles;
     source_offset += n_particles;
   }
+}
+
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+void write_log(xt::xtensor<double, 1>& before_fiss_bank_analog,
+  xt::xtensor<double, 1>& before_fiss_bank_weight,
+  xt::xtensor<double, 1>& after_fiss_bank_analog,
+  xt::xtensor<double, 1>& after_fiss_bank_weight,
+  xt::xtensor<double, 1>& after_src_bank_analog,
+  xt::xtensor<double, 1>& after_src_bank_weight, const int n_bins,
+  const std::string& filename)
+{
+  std::ofstream outFile(filename);
+
+  if (!outFile.is_open()) {
+    std::cerr << "Unable to open file: " << filename << std::endl;
+    return;
+  }
+
+  // Writing vector content to the file
+  int n_mesh {0};
+  double tot_fiss_bank_site_before {0.0};
+  double tot_fiss_bank_weight_before {0.0};
+  double tot_fiss_bank_site_after {0.0};
+  double tot_fiss_bank_weight_after {0.0};
+  double tot_src_bank_site_after {0.0};
+  double tot_src_bank_weight_after {0.0};
+  for (size_t i = 0; i < n_bins; i++) {
+
+    // Skip if all are zeros
+    bool is_analog_zero = before_fiss_bank_analog[i] &&
+                          after_fiss_bank_analog[i] && after_src_bank_analog[i];
+    bool is_weight_zero = before_fiss_bank_weight[i] &&
+                          after_fiss_bank_weight[i] && after_src_bank_weight[i];
+    if (!is_analog_zero && !is_weight_zero)
+      continue;
+
+    // Calc total vals
+    n_mesh++;
+    tot_fiss_bank_site_before += before_fiss_bank_analog[i];
+    tot_fiss_bank_weight_before += before_fiss_bank_weight[i];
+    tot_fiss_bank_site_after += after_fiss_bank_analog[i];
+    tot_fiss_bank_weight_after += after_fiss_bank_weight[i];
+    tot_src_bank_site_after += after_src_bank_analog[i];
+    tot_src_bank_weight_after += after_src_bank_weight[i];
+
+    // Write
+    outFile << "Mesh " << i + 1 << "\n";
+    outFile << "# site: " << before_fiss_bank_analog[i] << " > "
+            << after_fiss_bank_analog[i] << " > " << after_src_bank_analog[i]
+            << "\n";
+    outFile << "# weight: " << before_fiss_bank_weight[i] << " > "
+            << after_fiss_bank_weight[i] << " > " << after_src_bank_weight[i]
+            << "\n";
+
+    // Write new line for the next mesh
+    outFile << "\n";
+  }
+
+  // Write summary
+  outFile << "Total non zero mesh: " << n_mesh << "\n";
+  outFile << "Total site : " << tot_fiss_bank_site_before << " > "
+          << tot_fiss_bank_site_before << " > " << tot_src_bank_site_after
+          << "\n";
+  outFile << "Total weight : " << tot_fiss_bank_weight_before << " > "
+          << tot_fiss_bank_weight_before << " > " << tot_src_bank_weight_after
+          << "\n";
+
+  // Save file
+  outFile.close();
 }
 
 } // namespace openmc
