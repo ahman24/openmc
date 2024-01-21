@@ -351,6 +351,26 @@ enum BranchlessMode {
   BRANCHLESS_SPLITTING_RR // with splitting and russian roulette
 };
 
+enum UFSMode {
+  NO_UFS, // default value
+
+  // During random walk, conventional ufs introduces the ufs_wgt which
+  // artificially adjust the expected number of fission neutrons produced while
+  // adjusting their weights to ensure fair game.
+  // The ufs wgt is calculated considering the src_frac and vol_frac. Here, the
+  // src_frac is obtained from the source bank of the corresponding generation.
+  CONVENTIONAL,
+
+  // Unlike conventional UFS, the improved UFS perform normal transport without
+  // any additional operations. Later at the end of the generation, the kernel
+  // will perform splitting (where the ufs mesh is less populated) and roulette
+  // (if too puplated).
+  // The src_frac is calculated based on the fission bank state wherease the
+  // vol_frac is calculated based on the non-zero ufs mesh (mesh with fission
+  // neutrons).
+  IMPROVED
+};
+
 //==============================================================================
 // Geometry Constants
 

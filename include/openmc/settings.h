@@ -56,7 +56,6 @@ extern bool survival_biasing;      //!< use survival biasing?
 extern bool temperature_multipole; //!< use multipole data?
 extern "C" bool trigger_on;        //!< tally triggers enabled?
 extern bool trigger_predict;       //!< predict batches for triggers?
-extern bool ufs_on;                //!< uniform fission site method on?
 extern bool urr_ptables_on;        //!< use unresolved resonance prob. tables?
 extern "C" bool weight_windows_on; //!< are weight windows are enabled?
 extern bool write_all_tracks;      //!< write track files for every particle?
@@ -143,6 +142,14 @@ extern BranchlessMode
 extern "C" int64_t
   init_n_particles; //!< initial number of particles per generation. Will be
                     //!< different when branchless collision is activated.
+
+extern UFSMode ufs_mode; //!< uniform fission site method on?
+
+extern double
+  ufs_threshold; //!< when calculating the expected ufs_wgt in a
+                 //!< mesh, the kernel requires the src_frac and vol_frac. If
+                 //!< the src_frac < ufs_threshold, ufs will return 1 (analog
+                 //!< sampling, no modification to the sampling procedure).
 
 } // namespace settings
 

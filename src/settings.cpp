@@ -71,7 +71,6 @@ bool survival_biasing {false};
 bool temperature_multipole {false};
 bool trigger_on {false};
 bool trigger_predict {false};
-bool ufs_on {false};
 bool urr_ptables_on {true};
 bool weight_windows_on {false};
 bool write_all_tracks {false};
@@ -133,6 +132,10 @@ double weight_survive {1.0};
 BranchlessMode branchless_mode {BranchlessMode::NO_BRANCHLESS};
 
 int64_t init_n_particles {-1};
+
+UFSMode ufs_mode {UFSMode::NO_UFS};
+
+double ufs_threshold {0.0};
 
 } // namespace settings
 
@@ -635,7 +638,23 @@ void read_settings_xml(pugi::xml_node root)
     simulation::ufs_mesh = m;
 
     // Turn on uniform fission source weighting
-    ufs_on = true;
+    auto ufs_node = root.child("ufs");
+    if (ufs_node) {
+      // get threshold
+      ufs_threshold = std::stod(get_node_value(ufs_node, "threshold"));
+
+      // get ufs mode
+      std::string mode = get_node_value(ufs_node, "mode");
+      if (mode == "conventional") {
+        ufs_mode = UFSMode::CONVENTIONAL;
+      } else if (mode == "improved") {
+        ufs_mode = UFSMode::IMPROVED;
+      } else {
+        fatal_error(fmt::format("UFS mode {} is not implemented", mode));
+      }
+    } else {
+      ufs_mode = UFSMode::CONVENTIONAL;
+    }
 
   } else if (check_for_node(root, "uniform_fs")) {
     fatal_error(
@@ -991,8 +1010,11 @@ void read_settings_xml(pugi::xml_node root)
         fatal_error(fmt::format("Branchless mode {} is not available!", mode));
     }
 
-    //! TODO:
-    //! Add if-clause throw error if BranchlessMode::BRANCHLESS + any UFS!
+    // Basic branchless (without population control) is not meant to be
+    // combined with any UFS modes (otherwise, will produce branches).
+    if (branchless_mode == BranchlessMode::BRANCHLESS && ufs_mode)
+      fatal_error("Basic branchless mode can not be used with any UFS mode "
+                  "since they will produce branches");
   }
 }
 

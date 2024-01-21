@@ -114,7 +114,6 @@ int openmc_finalize()
   settings::trigger_on = false;
   settings::trigger_predict = false;
   settings::trigger_batch_interval = 1;
-  settings::ufs_on = false;
   settings::urr_ptables_on = true;
   settings::verbosity = 7;
   settings::weight_cutoff = 0.25;
@@ -150,6 +149,14 @@ int openmc_finalize()
   if (mpi::source_site != MPI_DATATYPE_NULL)
     MPI_Type_free(&mpi::source_site);
 #endif
+
+  //==============================================================================
+  // New/Modified parameters
+  //==============================================================================
+
+  settings::branchless_mode = BranchlessMode::NO_BRANCHLESS;
+
+  settings::ufs_mode = UFSMode::NO_UFS;
 
   return 0;
 }
