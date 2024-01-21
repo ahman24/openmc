@@ -63,14 +63,6 @@ void synchronize_bank();
 //! source convergence
 void shannon_entropy();
 
-//! Determines the source fraction in each UFS mesh cell and reweights the
-//! source bank so that the sum of the weights is equal to n_particles. The
-//! 'source_frac' variable is used later to bias the production of fission sites
-void ufs_count_sites();
-
-//! Get UFS weight corresponding to particle's location
-double ufs_get_weight(const Particle& p);
-
 //! Write data related to k-eigenvalue to statepoint
 //! \param[in] group HDF5 group
 void write_eigenvalue_hdf5(hid_t group);
@@ -78,6 +70,22 @@ void write_eigenvalue_hdf5(hid_t group);
 //! Read data related to k-eigenvalue from statepoint
 //! \param[in] group HDF5 group
 void read_eigenvalue_hdf5(hid_t group);
+
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+//! Perform splitting-roulette of fission sites for improved UFS
+void ufs_finalize_generation();
+
+//! Determines the source fraction in each UFS mesh cell and reweights the
+//! source bank so that the sum of the weights is equal to n_particles. The
+//! 'source_frac' variable is used later to bias the production of fission sites
+void ufs_count_sites();
+
+//! Get UFS weight corresponding to particle's location
+double ufs_get_weight(const Particle& p);
+double ufs_get_weight(const SourceSite& site);
 
 } // namespace openmc
 

@@ -469,7 +469,7 @@ void initialize_generation()
     simulation::fission_bank.resize(0);
 
     // Count source sites if using uniform fission source weighting
-    if (settings::ufs_on)
+    if (settings::ufs_mode == UFSMode::CONVENTIONAL)
       ufs_count_sites();
 
     // Store current value of tracklength k
@@ -477,7 +477,7 @@ void initialize_generation()
       GlobalTally::K_TRACKLENGTH, TallyResult::VALUE);
 
     // Reset current generation total weight
-    if (settings::ufs_on || settings::branchless_mode ||
+    if (settings::ufs_mode || settings::branchless_mode ||
         settings::survival_biasing)
       simulation::gen_total_weight = 0.0;
   }

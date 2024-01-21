@@ -218,7 +218,7 @@ void synchronize_bank()
   // modification is typically applied after combing (if combing is used).
   // See H. Belanger, M&C 2023
 
-  if (settings::ufs_on || settings::branchless_mode ||
+  if (settings::ufs_mode || settings::branchless_mode ||
       settings::survival_biasing) {
 
     // Get total weight
@@ -572,65 +572,6 @@ void shannon_entropy()
   }
 }
 
-void ufs_count_sites()
-{
-  if (simulation::current_batch == 1 && simulation::current_gen == 1) {
-    // On the first generation, just assume that the source is already evenly
-    // distributed so that effectively the production of fission sites is not
-    // biased
-
-    std::size_t n = simulation::ufs_mesh->n_bins();
-    double vol_frac = simulation::ufs_mesh->volume_frac_;
-    simulation::source_frac = xt::xtensor<double, 1>({n}, vol_frac);
-
-  } else {
-    // count number of source sites in each ufs mesh cell
-    bool sites_outside;
-    simulation::source_frac =
-      simulation::ufs_mesh->count_sites(simulation::source_bank.data(),
-        simulation::source_bank.size(), &sites_outside);
-
-    // Check for sites outside of the mesh
-    if (mpi::master && sites_outside) {
-      fatal_error("Source sites outside of the UFS mesh!");
-    }
-
-#ifdef OPENMC_MPI
-    // Send source fraction to all processors
-    int n_bins = simulation::ufs_mesh->n_bins();
-    MPI_Bcast(
-      simulation::source_frac.data(), n_bins, MPI_DOUBLE, 0, mpi::intracomm);
-#endif
-
-    // Normalize to total weight to get fraction of source in each cell
-    double total = xt::sum(simulation::source_frac)();
-    simulation::source_frac /= total;
-
-    // Since the total starting weight is not equal to n_particles, we need to
-    // renormalize the weight of the source sites
-    for (int i = 0; i < simulation::work_per_rank; ++i) {
-      simulation::source_bank[i].wgt *= settings::n_particles / total;
-    }
-  }
-}
-
-double ufs_get_weight(const Particle& p)
-{
-  // Determine indices on ufs mesh for current location
-  int mesh_bin = simulation::ufs_mesh->get_bin(p.r());
-  if (mesh_bin < 0) {
-    p.write_restart();
-    fatal_error("Source site outside UFS mesh!");
-  }
-
-  if (simulation::source_frac(mesh_bin) != 0.0) {
-    return simulation::ufs_mesh->volume_frac_ /
-           simulation::source_frac(mesh_bin);
-  } else {
-    return 1.0;
-  }
-}
-
 void write_eigenvalue_hdf5(hid_t group)
 {
   write_dataset(group, "n_inactive", settings::n_inactive);
@@ -659,6 +600,181 @@ void read_eigenvalue_hdf5(hid_t group)
   read_dataset(group, "k_col_abs", simulation::k_col_abs);
   read_dataset(group, "k_col_tra", simulation::k_col_tra);
   read_dataset(group, "k_abs_tra", simulation::k_abs_tra);
+}
+
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+// CONTINUE WORKING
+void ufs_finalize_generation()
+{
+  // Calculate source frac from the current-generation fission bank
+  ufs_count_sites();
+
+  // Make sure all processors start at the same point for random sampling. Then
+  // skip ahead in the sequence using the starting index in the 'global'
+  // fission bank for each processor.
+  int64_t id = simulation::total_gen + overall_generation();
+  uint64_t seed = init_seed(id, STREAM_TRACKING);
+
+  // Allocate temporary fission bank and container
+  double splitting_factor {0.0};
+  int n_split {0};
+  int64_t index_temp {0};
+  vector<SourceSite> temp_sites(3 * simulation::fission_bank.size());
+  for (int64_t i = 0; i < simulation::fission_bank.size(); i++) {
+    auto& site = simulation::fission_bank[i];
+
+    // Apply splitting-roulette depending on the mesh src and vol fracs
+    splitting_factor = ufs_get_weight(site);
+    n_split = static_cast<int>(splitting_factor);
+    if (prn(&seed) <= (splitting_factor - n_split))
+      n_split++;
+    if (n_split == 0)
+      continue;
+
+    // Push new splitted sites into the temporary fission bank.
+    // site.wgt /= splitting_factor;
+    for (int i = 0; i < n_split; i++) {
+      temp_sites[index_temp] = site;
+      index_temp++;
+    }
+  }
+
+  // Copy the temporary fission bank to the new fission bank
+  simulation::fission_bank.resize(index_temp);
+  std::copy(temp_sites.data(), temp_sites.data() + index_temp,
+    simulation::fission_bank.begin());
+}
+
+void ufs_count_sites()
+{
+  bool sites_outside {false};
+  if (simulation::current_batch == 1 && simulation::current_gen == 1 &&
+      settings::ufs_mode != UFSMode::IMPROVED) {
+    // On the first generation, just assume that the source is already evenly
+    // distributed so that effectively the production of fission sites is not
+    // biased
+
+    std::size_t n = simulation::ufs_mesh->n_bins();
+    double vol_frac = simulation::ufs_mesh->volume_frac_;
+    simulation::source_frac = xt::xtensor<double, 1>({n}, vol_frac);
+
+  } else if (settings::ufs_mode == UFSMode::CONVENTIONAL) {
+    simulation::source_frac =
+      simulation::ufs_mesh->count_sites(simulation::source_bank.data(),
+        simulation::source_bank.size(), &sites_outside);
+
+  } else if (settings::ufs_mode == UFSMode::IMPROVED) {
+    simulation::source_frac =
+      simulation::ufs_mesh->count_sites(simulation::fission_bank.data(),
+        simulation::fission_bank.size(), &sites_outside);
+  }
+
+  // Check for sites outside of the mesh
+  if (mpi::master && sites_outside) {
+    fatal_error("Source sites outside of the UFS mesh!");
+  }
+
+#ifdef OPENMC_MPI
+  // Send source fraction to all processors
+  int n_bins = simulation::ufs_mesh->n_bins();
+  MPI_Bcast(
+    simulation::source_frac.data(), n_bins, MPI_DOUBLE, 0, mpi::intracomm);
+#endif
+
+  // Normalize to total weight to get fraction of source in each cell
+  double total = xt::sum(simulation::source_frac)();
+  if (total == 0)
+    return;
+  simulation::source_frac /= total;
+}
+
+double ufs_get_weight(const Particle& p)
+{
+  // Determine indices on ufs mesh for current location
+  int mesh_bin = simulation::ufs_mesh->get_bin(p.r());
+  if (mesh_bin < 0) {
+    p.write_restart();
+    fatal_error("Source site outside UFS mesh!");
+  }
+
+  // In original UFS implementation, the number of neutrons produced is defined
+  // by m_ufs = w * nu xs_f / xs_t * v_i/s_i where v_i is calculated before
+  // simulation (assumed to be equal in RegularMesh) and s_i is the source frac.
+  // However, current approach posed a problem for neutron clustering condition
+  // where s_i approaches 0--fission neutron production would explode.
+
+  double vol_frac;
+  if (settings::ufs_mode == UFSMode::CONVENTIONAL) {
+    vol_frac = simulation::ufs_mesh->volume_frac_;
+  }
+
+  //! TODO: Refactor inside as RegularMesh method
+  else if (settings::ufs_mode == UFSMode::IMPROVED) {
+    int n_non_zero_mesh {0};
+
+    for (const double& frac : simulation::source_frac) {
+      if (frac != 0.0)
+#pragma omp atomic
+        n_non_zero_mesh++;
+    }
+    vol_frac = 1.0 / n_non_zero_mesh;
+  }
+
+  double vol_to_src_ratio = vol_frac / simulation::source_frac(mesh_bin);
+
+  if (vol_to_src_ratio > settings::ufs_threshold) {
+    return vol_to_src_ratio;
+  } else {
+    return 1.0;
+  }
+}
+
+double ufs_get_weight(const SourceSite& site)
+{
+  // Determine indices on ufs mesh for current location
+  int mesh_bin = simulation::ufs_mesh->get_bin(site.r);
+  if (mesh_bin < 0) {
+    Particle p;
+    p.from_source(&site);
+    p.write_restart();
+    fatal_error("Source site outside UFS mesh!");
+  }
+
+  // In original UFS implementation, the number of neutrons produced is defined
+  // by m_ufs = w * nu xs_f / xs_t * v_i/s_i where v_i is calculated before
+  // simulation (assumed to be equal in RegularMesh) and s_i is the source frac.
+  // However, current approach posed a problem for neutron clustering condition
+  // where s_i approaches 0--fission neutron production would explode.
+
+  double vol_frac;
+  if (settings::ufs_mode == UFSMode::CONVENTIONAL) {
+    vol_frac = simulation::ufs_mesh->volume_frac_;
+  }
+
+  //! TODO: Refactor inside as RegularMesh method
+  else if (settings::ufs_mode == UFSMode::IMPROVED) {
+    double n_non_zero_mesh {0.0};
+
+    for (const double& frac : simulation::source_frac) {
+      if (frac != 0.0)
+#pragma omp atomic
+        n_non_zero_mesh++;
+    }
+    vol_frac = 1.0 / n_non_zero_mesh;
+  }
+
+  double src_frac = simulation::source_frac(mesh_bin);
+
+  double vol_to_src_ratio = vol_frac / simulation::source_frac(mesh_bin);
+
+  if (vol_to_src_ratio > settings::ufs_threshold) {
+    return vol_to_src_ratio;
+  } else {
+    return 1.0;
+  }
 }
 
 } // namespace openmc

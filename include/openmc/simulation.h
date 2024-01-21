@@ -106,6 +106,18 @@ void transport_history_based();
 //! Simulate all particle histories using event-based parallelism
 void transport_event_based();
 
+//==============================================================================
+// New/Modified parameters
+//==============================================================================
+
+void write_log(xt::xtensor<double, 1>& before_fiss_bank_analog,
+  xt::xtensor<double, 1>& before_fiss_bank_weight,
+  xt::xtensor<double, 1>& after_fiss_bank_analog,
+  xt::xtensor<double, 1>& after_fiss_bank_weight,
+  xt::xtensor<double, 1>& after_src_bank_analog,
+  xt::xtensor<double, 1>& after_src_bank_weight, const int n_bins,
+  const std::string& filename);
+
 } // namespace openmc
 
 #endif // OPENMC_SIMULATION_H
