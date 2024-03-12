@@ -627,7 +627,14 @@ void ufs_finalize_generation()
     auto& site = simulation::fission_bank[i];
 
     // Apply splitting-roulette depending on the mesh src and vol fracs
+    // handle population explosion when we have very low ratio
     splitting_factor = ufs_get_weight(site);
+    if (site.wgt / splitting_factor < settings::weight_cutoff) {
+      double ratio = settings::weight_cutoff / (site.wgt / splitting_factor);
+      splitting_factor /= ratio;
+    }
+
+    // Determine number of particles to split
     n_split = static_cast<int>(splitting_factor);
     if (prn(&seed) <= (splitting_factor - n_split))
       n_split++;
