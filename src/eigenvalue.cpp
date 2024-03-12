@@ -635,7 +635,7 @@ void ufs_finalize_generation()
       continue;
 
     // Push new splitted sites into the temporary fission bank.
-    // site.wgt /= splitting_factor;
+    site.wgt /= splitting_factor;
     for (int i = 0; i < n_split; i++) {
       temp_sites[index_temp] = site;
       index_temp++;
