@@ -829,10 +829,13 @@ void gyrational_radius()
   double distance {0.};
   double tot_wgt {0.};
   for (const SourceSite& site : simulation::fission_bank) {
-    double xsq = std::pow(site.r.x - simulation::center_of_mass.back()[0], 2);
-    double ysq = std::pow(site.r.y - simulation::center_of_mass.back()[1], 2);
-    double zsq = std::pow(site.r.z - simulation::center_of_mass.back()[2], 2);
-    distance += std::sqrt(site.wgt * xsq + site.wgt * ysq + site.wgt * zsq);
+    double xsq =
+      std::pow(site.wgt * site.r.x - simulation::center_of_mass.back()[0], 2);
+    double ysq =
+      std::pow(site.wgt * site.r.y - simulation::center_of_mass.back()[1], 2);
+    double zsq =
+      std::pow(site.wgt * site.r.z - simulation::center_of_mass.back()[2], 2);
+    distance += std::sqrt(xsq + ysq + zsq);
     tot_wgt += site.wgt;
   }
 
