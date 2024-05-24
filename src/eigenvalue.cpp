@@ -38,6 +38,7 @@ namespace simulation {
 double keff_generation;
 array<double, 2> k_sum;
 vector<double> entropy;
+vector<array<double, 3>> center_of_mass;
 xt::xtensor<double, 1> source_frac;
 
 } // namespace simulation
@@ -782,6 +783,30 @@ double ufs_get_weight(const SourceSite& site)
   } else {
     return 1.0;
   }
+}
+
+void center_of_mass()
+{
+
+  // Calculate center of mass
+  double x {0.};
+  double y {0.};
+  double z {0.};
+  double tot_wgt {0.};
+  for (const SourceSite& site : simulation::fission_bank) {
+    x += site.wgt * site.r.x;
+    y += site.wgt * site.r.y;
+    z += site.wgt * site.r.z;
+    tot_wgt += site.wgt;
+  }
+
+  // Normalize com based on the total weight
+  x /= tot_wgt;
+  y /= tot_wgt;
+  z /= tot_wgt;
+
+  // Push to container
+  simulation::center_of_mass.emplace_back(array<double, 3> {x, y, z});
 }
 
 } // namespace openmc

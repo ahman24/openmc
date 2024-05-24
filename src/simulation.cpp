@@ -580,6 +580,9 @@ void finalize_generation()
     if (settings::entropy_on)
       shannon_entropy();
 
+    // Calculate center of mass
+    center_of_mass();
+
     // Collect results and statistics
     calculate_generation_keff();
     calculate_average_keff();

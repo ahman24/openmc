@@ -24,6 +24,8 @@ namespace simulation {
 extern double keff_generation; //!<  Single-generation k on each processor
 extern array<double, 2> k_sum; //!< Used to reduce sum and sum_sq
 extern vector<double> entropy; //!< Shannon entropy at each generation
+extern vector<array<double, 3>>
+  center_of_mass; //!< Center of Mass at each generation
 extern xt::xtensor<double, 1> source_frac; //!< Source fraction for UFS
 
 } // namespace simulation
@@ -86,6 +88,9 @@ void ufs_count_sites();
 //! Get UFS weight corresponding to particle's location
 double ufs_get_weight(const Particle& p);
 double ufs_get_weight(const SourceSite& site);
+
+//! Calculate center of mass from current fission bank
+void center_of_mass();
 
 } // namespace openmc
 
