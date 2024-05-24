@@ -199,6 +199,7 @@ void get_run_parameters(pugi::xml_node node_base)
     simulation::k_generation.reserve(m);
     simulation::entropy.reserve(m);
     simulation::center_of_mass.reserve(m);
+    simulation::gyrational_radius.reserve(m);
 
     // Get the trigger information for keff
     if (check_for_node(node_base, "keff_trigger")) {

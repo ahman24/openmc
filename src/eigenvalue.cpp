@@ -39,6 +39,7 @@ double keff_generation;
 array<double, 2> k_sum;
 vector<double> entropy;
 vector<array<double, 3>> center_of_mass;
+vector<double> gyrational_radius;
 xt::xtensor<double, 1> source_frac;
 
 } // namespace simulation
@@ -607,7 +608,6 @@ void read_eigenvalue_hdf5(hid_t group)
 // New/Modified parameters
 //==============================================================================
 
-// CONTINUE WORKING
 void ufs_finalize_generation()
 {
   // Calculate source frac from the current-generation fission bank
@@ -807,6 +807,26 @@ void center_of_mass()
 
   // Push to container
   simulation::center_of_mass.emplace_back(array<double, 3> {x, y, z});
+}
+
+void gyrational_radius()
+{
+  // Calculate center of mass
+  double distance {0.};
+  double tot_wgt {0.};
+  for (const SourceSite& site : simulation::fission_bank) {
+    double xsq = std::pow(site.r.x - simulation::center_of_mass.back()[0], 2);
+    double ysq = std::pow(site.r.y - simulation::center_of_mass.back()[1], 2);
+    double zsq = std::pow(site.r.z - simulation::center_of_mass.back()[2], 2);
+    distance += std::sqrt(site.wgt * xsq + site.wgt * ysq + site.wgt * zsq);
+    tot_wgt += site.wgt;
+  }
+
+  // Normalize gyrational radius
+  distance /= tot_wgt;
+
+  // Push to container
+  simulation::gyrational_radius.push_back(distance);
 }
 
 } // namespace openmc

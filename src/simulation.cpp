@@ -583,6 +583,9 @@ void finalize_generation()
     // Calculate center of mass
     center_of_mass();
 
+    // Calculate gyrational radius
+    gyrational_radius();
+
     // Collect results and statistics
     calculate_generation_keff();
     calculate_average_keff();

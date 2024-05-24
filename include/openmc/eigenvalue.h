@@ -26,6 +26,8 @@ extern array<double, 2> k_sum; //!< Used to reduce sum and sum_sq
 extern vector<double> entropy; //!< Shannon entropy at each generation
 extern vector<array<double, 3>>
   center_of_mass; //!< Center of Mass at each generation
+extern vector<double>
+  gyrational_radius; //!< Gyrational radius at each generation
 extern xt::xtensor<double, 1> source_frac; //!< Source fraction for UFS
 
 } // namespace simulation
@@ -91,6 +93,9 @@ double ufs_get_weight(const SourceSite& site);
 
 //! Calculate center of mass from current fission bank
 void center_of_mass();
+
+//! Calculate gyrational radius
+void gyrational_radius();
 
 } // namespace openmc
 
