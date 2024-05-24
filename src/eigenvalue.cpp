@@ -582,6 +582,20 @@ void write_eigenvalue_hdf5(hid_t group)
   if (settings::entropy_on) {
     write_dataset(group, "entropy", simulation::entropy);
   }
+
+  // shortcut for writing to hdf5
+  vector<double> com_x;
+  vector<double> com_y;
+  vector<double> com_z;
+  for (const auto& com : simulation::center_of_mass) {
+    com_x.push_back(com[0]);
+    com_y.push_back(com[1]);
+    com_z.push_back(com[1]);
+  }
+  write_dataset(group, "com_x", com_x);
+  write_dataset(group, "com_y", com_y);
+  write_dataset(group, "com_z", com_z);
+  write_dataset(group, "gyrational_radius", simulation::gyrational_radius);
   write_dataset(group, "k_col_abs", simulation::k_col_abs);
   write_dataset(group, "k_col_tra", simulation::k_col_tra);
   write_dataset(group, "k_abs_tra", simulation::k_abs_tra);
