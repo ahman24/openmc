@@ -371,8 +371,11 @@ void print_build_info()
 void print_columns()
 {
   if (settings::entropy_on) {
-    fmt::print("  Bat./Gen.      k       Entropy         Average k \n"
-               "  =========   ========   ========   ====================\n");
+    // clang-format off
+    fmt::print(
+      "  Bat./Gen.      k       Entropy              CoM              Gyr. Rad         Average k \n"
+      "  =========   ========   ========   ========================   =========  ====================\n");
+    // clang-format on
   } else {
     fmt::print("  Bat./Gen.      k            Average k\n"
                "  =========   ========   ====================\n");
@@ -399,6 +402,13 @@ void print_generation()
   if (settings::entropy_on) {
     fmt::print("   {:8.5f}", simulation::entropy[idx]);
   }
+
+  // Write out center of mass
+  fmt::print("   ({:7.3f},{:7.3f},{:7.3f})", simulation::center_of_mass[idx][0],
+    simulation::center_of_mass[idx][1], simulation::center_of_mass[idx][2]);
+
+  // Write out gyrational radius
+  fmt::print("  {:7.3f}", simulation::gyrational_radius[idx]);
 
   if (n > 1) {
     fmt::print("   {:8.5f} +/-{:8.5f}", simulation::keff, simulation::keff_std);
